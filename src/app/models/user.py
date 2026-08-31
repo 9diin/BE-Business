@@ -3,12 +3,14 @@ from datetime import datetime
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from ..core.database import Base
 
-class User():
+
+class User(Base):
     # 실제 DB에 만들어질 테이블 이름
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(Primary_key=True)
+    id: Mapped[str] = mapped_column(primary_key=True)
 
     email: Mapped[str] = mapped_column(String(255), unique=True)
 

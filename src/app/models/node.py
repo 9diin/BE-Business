@@ -3,8 +3,10 @@ from datetime import datetime
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from ..core.database import Base
 
-class Node():
+
+class Node(Base):
     # 실제 DB에 만들어질 테이블 이름
     __tablename__ = "nodes"
 

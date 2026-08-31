@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter  # noqa: I001
 from ..schemas.user import SignUpRequest, SignInRequest
 
 router = APIRouter()

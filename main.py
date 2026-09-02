@@ -10,7 +10,6 @@ from app.models.node import Node  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.routers.user import router as user_router
 
-
 # 서버 시작 시 Supabase DB에 테이블 생성
 # @asynccontextmanager
 # async def lifespan(app: FastAPI):

@@ -50,6 +50,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..core.database import Base
 
 if TYPE_CHECKING:
+    from ..models.idea import Idea
     from ..models.node import Node
 
 
@@ -57,10 +58,25 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(primary_key=True)
+
     email: Mapped[str] = mapped_column(String(255), unique=True)
+
     password: Mapped[str] = mapped_column(String(255))
+    
     ai_key: Mapped[str] = mapped_column(String(255), nullable=True)
+    
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # relationship의 Target 클래스는 문자열 "Node" 형태로 참조합니다.
+    # - nodes: 변수(속성), 컬럼 이름입니다. 파이썬 코드에서 user.nodes처럼 호출할 때 사용할 명칭입니다.
+    # - Mapped[list["Node"]]: SQLAlchemy의 Mapped 타입으로, Node 객체들의 리스트를 나타냅니다.
+    # - relationship(back_populates="author"): Node 클래스의 author 속성과 연결되어, 
+    #   User 객체를 통해 관련된 Node 객체들을 조회할 수 있도록 설정합니다.
+    # - relationship의 back_populates는 양방향 관계를 설정하는 데 사용됩니다.
+    #   SQLAlchemy ORM 전용 기능입니다. 실제 DB 테이블에 컬럼을 만드는 것이 아니라,
+    #   파이썬 메모리 상에서 객체와 객체를 연결해주는 가상 연결선 역할을 합니다.
+    # - back_populuates="author" 양방향 참조 동기화 설정입니다.
+    #   User 클래스(엔티티)에 작성된 nodes 속성과 Node 클래스(엔티티)에서 작성한 author 속성이 서로 한 쌍임을 선언
     nodes: Mapped[list["Node"]] = relationship(back_populates="author")
+
+    ideas: Mapped[list["Idea"]] = relationship(back_populates="author")

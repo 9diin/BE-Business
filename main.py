@@ -8,8 +8,10 @@ from app.models.node import Node  # noqa: F401
 from app.models.plan import Plan  # noqa: F401
 # ⚠️ 이 문장이 들어가야 파이썬이 User 클래스를 메모리에 올리고 Base에 등록합니다.
 from app.models.user import User  # noqa: F401
+from app.models.user_profile import UserProfile  # noqa: F401
 from app.routers.node import router as node_router
 from app.routers.user import router as user_router
+
 
 # 서버 시작 시 Supabase DB에 테이블 생성
 # @asynccontextmanager

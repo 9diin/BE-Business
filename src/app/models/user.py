@@ -52,6 +52,7 @@ from ..core.database import Base
 if TYPE_CHECKING:
     from ..models.idea import Idea
     from ..models.node import Node
+    from ..models.user_profile import UserProfile
 
 
 class User(Base):
@@ -80,3 +81,10 @@ class User(Base):
     nodes: Mapped[list["Node"]] = relationship(back_populates="author")
 
     ideas: Mapped[list["Idea"]] = relationship(back_populates="author")
+
+    # 1:1 관계 (User와 UserProfile) - uselist=False로 단일 객체 매핑
+    profile: Mapped["UserProfile"] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

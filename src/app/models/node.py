@@ -24,4 +24,4 @@ class Node(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
     # Node와 User 간의 1:N 관계를 나타내는 속성
-    author: Mapped["User"] = relationship(back_populates="nodes")  # Node와 User 간의 1:N 관계를 나타내는 속성
+    author: Mapped["User"] = relationship(back_populates="nodes")

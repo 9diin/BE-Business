@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
@@ -18,24 +19,29 @@ class IdeaService:
 
     def _call_llm(self, ai_key: str, system_prompt: str, user_prompt: str) -> dict[str, str]:
         """
-        OpenAI Chat Completion API를 호출하여 구조화된 아이디어 JSON 데이터를 추출합니다.
+        Google Gemini REST API (gemini-3.5-flash)를 호출하여 구조화된 아이디어 JSON 데이터를 추출합니다.
         """
+
         try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={ai_key.strip()}"
+            prompt_text = f"{system_prompt}\n\n[요청 내용]\n{user_prompt}"
+
             with httpx.Client(timeout=30.0) as client:
                 response = client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {ai_key.strip()}",
-                        "Content-Type": "application/json",
-                    },
+                    url,
+                    headers={"Content-Type": "application/json"},
                     json={
-                        "model": "gpt-4o-mini",
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt},
+                        "contents": [
+                            {
+                                "parts": [
+                                    {"text": prompt_text}
+                                ]
+                            }
                         ],
-                        "temperature": 0.7,
-                        "response_format": {"type": "json_object"},
+                        "generationConfig": {
+                            "responseMimeType": "application/json",
+                            "temperature": 0.7,
+                        },
                     },
                 )
 
@@ -48,12 +54,30 @@ class IdeaService:
                     pass
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"LLM API 호출 중 오류가 발생했습니다: {error_detail}",
+                    detail=f"Gemini API 호출 중 오류가 발생했습니다: {error_detail}",
                 )
 
             res_data = response.json()
-            content = res_data["choices"][0]["message"]["content"]
-            parsed_content = json.loads(content)
+            candidates = res_data.get("candidates", [])
+            if not candidates:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Gemini API 응답에서 후보(candidates)를 찾을 수 없습니다.",
+                )
+
+            content_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+            
+            # 마크다운 정제 (```json ... ``` 형태 제거)
+            content_text = content_text.strip()
+            if content_text.startswith("```json"):
+                content_text = content_text[7:]
+            if content_text.startswith("```"):
+                content_text = content_text[3:]
+            if content_text.endswith("```"):
+                content_text = content_text[:-3]
+            content_text = content_text.strip()
+
+            parsed_content = json.loads(content_text)
 
             return {
                 "title": parsed_content.get("title", "생성된 비즈니스 아이디어"),
@@ -63,7 +87,7 @@ class IdeaService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.exception("LLM 아이디어 도출 중 오류 발생")
+            logger.exception("Gemini API 아이디어 도출 중 오류 발생")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"아이디어 생성 처리 중 오류가 발생했습니다: {str(e)}",
@@ -72,13 +96,13 @@ class IdeaService:
     def generate_idea(self, request: GenerateIdeaRequest) -> Idea:
         """
         아이디어 자동 생성 비즈니스 로직:
-        1. USERS 테이블에서 user_id 조회 및 ai_key 존재 여부 검증
+        1. USERS 테이블에서 user_id 조회 및 ai_key 존재 여부 검증 (없을 경우 .env의 GEMINI_API_KEY 활용)
         2. NODES 테이블에서 해당 유저가 작성한 노드 중 request.node_ids에 해당하는 노드들을 조회
         3. 최소 2개 이상의 노드가 존재하는지 검증 (테이블 조인 활용을 위한 전제 조건)
-        4. user의 ai_key를 활용하여 LLM(OpenAI API)을 호출하여 새로운 아이디어(제목, 의견) 도출
+        4. Gemini API를 호출하여 새로운 아이디어(제목, 의견) 도출
         5. 도출된 아이디어와 연결된 노드들을 idea_nodes 매핑 테이블을 통해 연결 후 Supabase DB에 저장
         """
-        # 1. 유저 및 ai_key 검증
+        # 1. 유저 검증
         user = self.db.query(User).filter(User.id == request.user_id).first()
         if not user:
             raise HTTPException(
@@ -86,13 +110,16 @@ class IdeaService:
                 detail=f"User(id='{request.user_id}')가 존재하지 않습니다.",
             )
 
-        if not user.ai_key or not user.ai_key.strip():
+        # 2. Gemini API Key 선택 (유저 ai_key 우선, 없으면 .env의 GEMINI_API_KEY)
+        api_key = user.ai_key.strip() if (user.ai_key and user.ai_key.strip()) else os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", "")).strip()
+
+        if not api_key:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="해당 사용자의 AI API 키(ai_key)가 등록되어 있지 않습니다. USERS 테이블의 ai_key를 먼저 설정해주세요.",
+                detail="해당 사용자의 Gemini API Key(ai_key)가 등록되어 있지 않으며, 서버의 GEMINI_API_KEY 환경변수도 설정되지 않았습니다.",
             )
 
-        # 2. 노드 조회 (작성자 일치 여부 및 최소 2개 이상 선택 검증)
+        # 3. 노드 조회 (작성자 일치 여부 및 최소 2개 이상 선택 검증)
         nodes = (
             self.db.query(Node)
             .filter(
@@ -111,7 +138,7 @@ class IdeaService:
                 ),
             )
 
-        # 3. LLM 프롬프트 구성
+        # 4. Gemini LLM 프롬프트 구성
         node_details = "\n".join(
             [
                 f"- [노드 ID: {node.id}] [카테고리: {node.category}] 제목: {node.title} / 설명: {node.description}"
@@ -120,7 +147,7 @@ class IdeaService:
         )
 
         system_prompt = (
-            "당신은 스타트업 비즈니스 모델 및 혁신 아이디어 전문 기획자입니다.\n"
+            "당신은 대한민국 대표 스타트업 비즈니스 모델 및 혁신 아이디어 전문 기획자입니다.\n"
             "사용자가 제공한 여러 개의 비즈니스 노드(아이디어 조각)들을 창의적이고 유기적으로 융합하여 "
             "새로운 비즈니스 아이디어의 제목(title)과 상세 분석 의견(opinion)을 도출해야 합니다.\n"
             "반드시 아래 JSON 포맷으로만 응답하세요. 다른 설명이나 마크다운 백틱(```json) 없이 순수 JSON 문자열만 출력하세요.\n"
@@ -133,10 +160,11 @@ class IdeaService:
             "위 노드들의 강점과 아이디어를 융합하여 혁신적인 비즈니스 아이디어(title)와 구체적인 설명 및 의견(opinion)을 생성해주세요."
         )
 
-        # 4. LLM 호출
-        llm_result = self._call_llm(user.ai_key, system_prompt, user_prompt)
+        # 5. Gemini LLM 호출
+        llm_result = self._call_llm(api_key, system_prompt, user_prompt)
         idea_title = llm_result["title"]
         idea_opinion = llm_result["opinion"]
+
 
         # 5. DB 엔티티 생성 및 연결된 노드들(N:M 관계) 매핑 후 Supabase DB에 저장
         new_idea = Idea(

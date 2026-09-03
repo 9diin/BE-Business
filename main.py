@@ -9,6 +9,7 @@ from app.models.plan import Plan  # noqa: F401
 # ⚠️ 이 문장이 들어가야 파이썬이 User 클래스를 메모리에 올리고 Base에 등록합니다.
 from app.models.user import User  # noqa: F401
 from app.models.user_profile import UserProfile  # noqa: F401
+from app.routers.idea import router as idea_router
 from app.routers.node import router as node_router
 from app.routers.user import router as user_router
 
@@ -46,3 +47,4 @@ def main():
 
 app.include_router(user_router)
 app.include_router(node_router)
+app.include_router(idea_router)

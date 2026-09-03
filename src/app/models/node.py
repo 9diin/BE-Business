@@ -1,10 +1,15 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..core.database import Base
-from ..models.user import User
+from ..models.idea import idea_nodes
+
+if TYPE_CHECKING:
+    from ..models.idea import Idea
+    from ..models.user import User
 
 
 class Node(Base):
@@ -25,3 +30,10 @@ class Node(Base):
 
     # Node와 User 간의 1:N 관계를 나타내는 속성
     author: Mapped["User"] = relationship(back_populates="nodes")
+
+    # Node와 Idea 간의 N:M 다대다 관계를 나타내는 속성
+    ideas: Mapped[list["Idea"]] = relationship(
+        "Idea",
+        secondary=idea_nodes,
+        back_populates="nodes",
+    )

@@ -33,6 +33,11 @@ class UserProfileUpdateRequest(BaseModel):
     profile_image_url: str | None = None
 
 
+class AiKeyRegisterRequest(BaseModel):
+    """Gemini AI Key 등록 및 수정 Request DTO"""
+    ai_key: str
+
+
 # ==========================================
 # Response DTOs
 # ==========================================
@@ -80,3 +85,10 @@ class TokenResponse(BaseModel):
 class SignUpResponse(BaseModel):
     message: str
     user: UserDetailResponse
+
+
+class AiKeyResponse(BaseModel):
+    """Gemini AI Key 조회 / 등록 / 수정 / 삭제 Response DTO"""
+    user_id: str
+    has_ai_key: bool  # Key 존재 여부 (실제 키 값은 보안상 노출하지 않음)
+    message: str

@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from ..core.database import get_db
 from ..schemas.user import (
+    AiKeyRegisterRequest,
+    AiKeyResponse,
     RefreshTokenRequest,
     SignInRequest,
     SignUpRequest,
@@ -72,3 +74,66 @@ async def update_user_profile(
     user_service: UserService = Depends(get_user_service),
 ):
     return user_service.update_profile(user_id, request)
+
+
+# ==========================================
+# Gemini AI Key CRUD 엔드포인트
+# ==========================================
+
+# [POST] AI Key 등록
+@router.post(
+    "/users/{user_id}/ai-key",
+    response_model=AiKeyResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Gemini AI Key 등록",
+    description="사용자의 Gemini AI Key를 등록합니다. 이미 등록된 Key가 있으면 409 에러를 반환합니다.",
+)
+async def register_ai_key(
+    user_id: str,
+    request: AiKeyRegisterRequest,
+    user_service: UserService = Depends(get_user_service),
+):
+    return user_service.register_ai_key(user_id, request)
+
+
+# [GET] AI Key 등록 여부 조회
+@router.get(
+    "/users/{user_id}/ai-key",
+    response_model=AiKeyResponse,
+    summary="Gemini AI Key 조회",
+    description="사용자의 Gemini AI Key 등록 여부를 조회합니다. 실제 Key 값은 보안상 노출하지 않습니다.",
+)
+async def get_ai_key(
+    user_id: str,
+    user_service: UserService = Depends(get_user_service),
+):
+    return user_service.get_ai_key(user_id)
+
+
+# [PUT] AI Key 수정
+@router.put(
+    "/users/{user_id}/ai-key",
+    response_model=AiKeyResponse,
+    summary="Gemini AI Key 수정",
+    description="등록된 Gemini AI Key를 수정합니다. 등록된 Key가 없는 경우 404 에러를 반환합니다.",
+)
+async def update_ai_key(
+    user_id: str,
+    request: AiKeyRegisterRequest,
+    user_service: UserService = Depends(get_user_service),
+):
+    return user_service.update_ai_key(user_id, request)
+
+
+# [DELETE] AI Key 삭제
+@router.delete(
+    "/users/{user_id}/ai-key",
+    response_model=AiKeyResponse,
+    summary="Gemini AI Key 삭제",
+    description="등록된 Gemini AI Key를 삭제(NULL 초기화)합니다.",
+)
+async def delete_ai_key(
+    user_id: str,
+    user_service: UserService = Depends(get_user_service),
+):
+    return user_service.delete_ai_key(user_id)

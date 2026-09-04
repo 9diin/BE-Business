@@ -12,6 +12,7 @@ from ..core.security import (
 from ..models.user import User
 from ..models.user_profile import UserProfile
 from ..schemas.user import (
+    AiKeyRegisterRequest,
     SignInRequest,
     SignUpRequest,
     UserProfileUpdateRequest,
@@ -194,3 +195,89 @@ class UserService:
         self.db.commit()
         self.db.refresh(user)
         return user
+
+    # ==========================================
+    # Gemini AI Key CRUD
+    # ==========================================
+
+    def register_ai_key(self, user_id: str, request: AiKeyRegisterRequest) -> dict:
+        """
+        Gemini AI Key 등록
+        - 이미 Key가 등록되어 있으면 409 예외 발생
+        - users 테이블의 ai_key 컬럼에 저장
+        """
+        user = self.get_user_by_id(user_id)
+
+        if user.ai_key:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="이미 Gemini AI Key가 등록되어 있습니다. 수정을 원하시면 PUT 요청을 사용해 주세요.",
+            )
+
+        user.ai_key = request.ai_key
+        self.db.commit()
+
+        return {
+            "user_id": user_id,
+            "has_ai_key": True,
+            "message": "Gemini AI Key가 성공적으로 등록되었습니다.",
+        }
+
+    def get_ai_key(self, user_id: str) -> dict:
+        """
+        Gemini AI Key 등록 여부 조회
+        - 보안상 실제 Key 값은 반환하지 않고 존재 여부(has_ai_key)만 반환
+        """
+        user = self.get_user_by_id(user_id)
+
+        has_key = bool(user.ai_key)
+        return {
+            "user_id": user_id,
+            "has_ai_key": has_key,
+            "message": "Gemini AI Key가 등록되어 있습니다." if has_key else "등록된 Gemini AI Key가 없습니다.",
+        }
+
+    def update_ai_key(self, user_id: str, request: AiKeyRegisterRequest) -> dict:
+        """
+        Gemini AI Key 수정
+        - 등록된 Key가 없으면 404 예외 발생 (등록 먼저 필요)
+        """
+        user = self.get_user_by_id(user_id)
+
+        if not user.ai_key:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="등록된 Gemini AI Key가 없습니다. 먼저 POST 요청으로 Key를 등록해 주세요.",
+            )
+
+        user.ai_key = request.ai_key
+        self.db.commit()
+
+        return {
+            "user_id": user_id,
+            "has_ai_key": True,
+            "message": "Gemini AI Key가 성공적으로 수정되었습니다.",
+        }
+
+    def delete_ai_key(self, user_id: str) -> dict:
+        """
+        Gemini AI Key 삭제
+        - ai_key 컬럼을 NULL로 초기화
+        - 등록된 Key가 없으면 404 예외 발생
+        """
+        user = self.get_user_by_id(user_id)
+
+        if not user.ai_key:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="삭제할 Gemini AI Key가 없습니다.",
+            )
+
+        user.ai_key = None
+        self.db.commit()
+
+        return {
+            "user_id": user_id,
+            "has_ai_key": False,
+            "message": "Gemini AI Key가 성공적으로 삭제되었습니다.",
+        }

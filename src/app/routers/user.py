@@ -23,7 +23,7 @@ def get_user_service(db: Session = Depends(get_db)) -> UserService:
 
 # 회원가입
 @router.post("/sign-up", response_model=SignUpResponse, status_code=status.HTTP_201_CREATED)
-@router.post("/users/sign-up", response_model=SignUpResponse, status_code=status.HTTP_201_CREATED)
+# @router.post("/users/sign-up", response_model=SignUpResponse, status_code=status.HTTP_201_CREATED)
 async def signup(
     request: SignUpRequest,
     user_service: UserService = Depends(get_user_service),
@@ -37,7 +37,7 @@ async def signup(
 
 # 로그인
 @router.post("/sign-in", response_model=TokenResponse)
-@router.post("/login", response_model=TokenResponse)
+# @router.post("/login", response_model=TokenResponse)
 async def signin(
     request: SignInRequest,
     user_service: UserService = Depends(get_user_service),
